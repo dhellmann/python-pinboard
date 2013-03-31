@@ -56,6 +56,32 @@ import datetime
 import six
 
 
+try:
+    quote_plus = urllib.quote_plus
+except AttributeError:
+    from urllib.parse import quote_plus
+try:
+    build_opener = urllib2.build_opener
+except AttributeError:
+    from urllib.request import build_opener
+try:
+    HTTPBasicAuthHandler = urllib2.HTTPBasicAuthHandler
+except AttributeError:
+    from urllib.request import HTTPBasicAuthHandler
+try:
+    install_opener = urllib2.install_opener
+except AttributeError:
+    from urllib.request import install_opener
+try:
+    URLError = urllib2.URLError
+except AttributeError:
+    from urllib.error import URLError
+try:
+    urlopen = urllib2.urlopen
+except AttributeError:
+    from urllib.request import urlopen
+
+
 # The URL of the Pinboard API
 PINBOARD_API = "https://api.pinboard.in/v1"
 AUTH_HANDLER_REALM = 'API'
@@ -152,16 +178,16 @@ class PinboardAccount(UserDict):
             sys.stderr.write("Initialising Pinboard Account object.\n")
 
         if token:
-            self.__token = urllib.quote_plus(token)
-            opener = urllib2.build_opener()
+            self.__token = quote_plus(token)
+            opener = build_opener()
         else:
-            auth_handler = urllib2.HTTPBasicAuthHandler()
+            auth_handler = HTTPBasicAuthHandler()
             auth_handler.add_password("API", "https://api.pinboard.in/", \
                     username, password)
-            opener = urllib2.build_opener(auth_handler)
+            opener = build_opener(auth_handler)
 
         opener.addheaders = [("User-agent", USER_AGENT), ('Accept-encoding', 'gzip')]
-        urllib2.install_opener(opener)
+        install_opener(opener)
         if _debug:
             sys.stderr.write("URL opener with HTTP authenticiation installed globally.\n")
 
@@ -209,14 +235,14 @@ class PinboardAccount(UserDict):
 
         try:
             ## for pinboard a gzip request is made
-            raw_xml = urllib2.urlopen(url)
+            raw_xml = urlopen(url)
             compresseddata = raw_xml.read()
             ## bing unpackaging gzipped stream buffer
             compressedstream = StringIO(compresseddata)
             gzipper = gzip.GzipFile(fileobj=compressedstream)
             xml = gzipper.read()
 
-        except urllib2.URLError as e:
+        except URLError as e:
             raise e
 
         self["headers"] = {}
