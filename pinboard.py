@@ -198,10 +198,19 @@ class PinboardAccount(UserDict):
         if _debug:
             sys.stderr.write("Time of last update loaded into class dictionary.\n")
 
+        self._cache = {
+            'bundles': None,
+            'dates': None,
+            'posts': None,
+            'tags': None,
+        }
+
     def __getitem__(self, key):
         try:
             return UserDict.__getitem__(self, key)
         except KeyError:
+            if self._cache.get(key, None) is not None:
+                return self._cache[key]
             if key == "tags":
                 return self.tags()
             elif key == "dates":
@@ -249,12 +258,27 @@ class PinboardAccount(UserDict):
             raise e
 
         self["headers"] = {}
-        for header in raw_xml.headers.headers:
-            (name, value) = header.split(": ")
-            self["headers"][name.lower()] = value[:-2]
-        if raw_xml.headers.status == "429":
-            raise ThrottleError(url, \
-                    "429 HTTP status code returned by pinboard.in")
+        try:
+            # Python 2
+            headers = (h.split(': ') for h in raw_xml.headers.headers)
+            for name, value in headers:
+                self["headers"][name.lower()] = value[:-2]
+        except AttributeError:
+            # Python 3
+            headers = raw_xml.info().items()
+            for name, value in headers:
+                self["headers"][name.lower()] = value
+        try:
+            # Python 2
+            status = int(raw_xml.headers.status)
+        except AttributeError:
+            # Python 3
+            status = raw_xml.status
+        if status == 429:
+            raise ThrottleError(
+                url,
+                "429 HTTP status code returned by pinboard.in",
+            )
         if _debug:
             sys.stderr.write("%s opened successfully.\n" % url)
         return minidom.parseString(xml)
@@ -339,6 +363,7 @@ class PinboardAccount(UserDict):
 
         # For each post, extract every attribute (splitting tags into sub-lists)
         # and insert as a dictionary into the `posts` list.
+        post_cache = self._cache['posts']
         for post in postsxml:
             postdict = {}
             for (name, value) in post.attributes.items():
@@ -348,14 +373,13 @@ class PinboardAccount(UserDict):
                 if name == u"time":
                     postdict[u"time_parsed"] = time.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
                 postdict[name] = value
-            if self.has_key("posts") and isinstance(self["posts"], list) \
-                    and postdict not in self["posts"]:
-                self["posts"].append(postdict)
+            if post_cache is not None and postdict not in post_cache:
+                post_cache.append(postdict)
             posts.append(postdict)
         if _debug:
             sys.stderr.write("Inserting posts list into class attribute.\n")
-        if not self.has_key("posts"):
-            self["posts"] = posts
+        if self._cache['posts'] is None:
+            self._cache['posts'] = posts
         if _debug:
             sys.stderr.write("Resetting marker so module doesn't think posts has been changed.\n")
         self.__postschanged = 0
@@ -377,6 +401,7 @@ class PinboardAccount(UserDict):
         tags = []
         if _debug:
             sys.stderr.write("Parsing tags XML into a list of dictionaries.\n")
+        tag_cache = self._cache['tags']
         for tag in tagsxml:
             tagdict = {}
             for (name, value) in tag.attributes.items():
@@ -385,14 +410,13 @@ class PinboardAccount(UserDict):
                 elif name == u"count":
                     value = int(value)
                 tagdict[name] = value
-            if self.has_key("tags") and isinstance(self["tags"], list) \
-                    and tagdict not in self["tags"]:
-                self["tags"].append(tagdict)
+            if tag_cache is not None and tagdict not in tag_cache:
+                tag_cache.append(tagdict)
             tags.append(tagdict)
         if _debug:
             sys.stderr.write("Inserting tags list into class attribute.\n")
-        if not self.has_key("tags"):
-            self["tags"] = tags
+        if self._cache['tags'] is None:
+            self._cache["tags"] = tags
         return tags
 
     def bundles(self):
@@ -402,24 +426,24 @@ class PinboardAccount(UserDict):
         bundles = []
         if _debug:
             sys.stderr.write("Parsing bundles XML into a list of dictionaries.\n")
+        bundle_cache = self._cache['bundles']
         for bundle in bundlesxml:
             bundledict = {}
             for (name, value) in bundle.attributes.items():
                 bundledict[name] = value
-            if self.has_key("bundles") and isinstance(self["bundles"], list) \
-                    and bundledict not in self["bundles"]:
-                self["bundles"].append(bundledict)
+            if bundle_cache is not None and bundledict not in bundle_cache:
+                bundle_cache.append(bundledict)
             bundles.append(bundledict)
         if _debug:
             sys.stderr.write("Inserting bundles list into class attribute.\n")
-        if not self.has_key("bundles"):
-            self["bundles"] = bundles
+        if self._cache['bundles'] is None:
+            self._cache["bundles"] = bundles
         return bundles
 
     def dates(self, tag=""):
         """Return a dictionary of dates with the number of posts at each date"""
         if tag:
-            query = urllib.urlencode({"tag":tag})
+            query = urlencode({"tag":tag})
         else:
             query = ""
         datesxml = self.__request("%s/posts/dates?%s" % \
@@ -427,6 +451,7 @@ class PinboardAccount(UserDict):
         dates = []
         if _debug:
             sys.stderr.write("Parsing dates XML into a list of dictionaries.\n")
+        date_cache = self._cache['dates']
         for date in datesxml:
             datedict = {}
             for (name, value) in date.attributes.items():
@@ -435,14 +460,13 @@ class PinboardAccount(UserDict):
                 elif name == u"count":
                     value = int(value)
                 datedict[name] = value
-            if self.has_key("dates") and isinstance(self["dates"], list) \
-                    and datedict not in self["dates"]:
-                self["dates"].append(datedict)
+            if date_cache is not None and datedict not in date_cache:
+                date_cache.append(datedict)
             dates.append(datedict)
         if _debug:
             sys.stderr.write("Inserting dates list into class attribute.\n")
-        if not self.has_key("dates"):
-            self["dates"] = dates
+        if self._cache['dates'] is None:
+            self._cache['dates'] = dates
         return dates
 
     # Methods to modify pinboard.in content
