@@ -69,6 +69,7 @@ except:
     datetime = None
 
 
+
 # The URL of the Pinboard API
 PINBOARD_API = "https://api.pinboard.in/v1"
 AUTH_HANDLER_REALM = 'API'
@@ -229,7 +230,7 @@ class PinboardAccount(UserDict):
             gzipper = gzip.GzipFile(fileobj=compressedstream)
             xml = gzipper.read()
 
-        except urllib2.URLError, e:
+        except urllib2.URLError as e:
             raise e
 
         self["headers"] = {}
@@ -559,7 +560,7 @@ class PinboardAccount(UserDict):
 
 if __name__ == "__main__":
     if sys.argv[1:][0] == '-v' or sys.argv[1:][0] == '--version':
-        print __version__
+        print(__version__)
 
 #REVISION HISTORY
 ## leaving as legacy for now, this should probably removed now for pinboard.in
