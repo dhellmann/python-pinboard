@@ -40,7 +40,7 @@ import sys
 import re
 import time
 ## added to handle gzip compression from server
-from six import StringIO
+from six import BytesIO
 import gzip
 
 from xml.dom import minidom
@@ -238,7 +238,7 @@ class PinboardAccount(UserDict):
             raw_xml = urlopen(url)
             compresseddata = raw_xml.read()
             ## bing unpackaging gzipped stream buffer
-            compressedstream = StringIO(compresseddata)
+            compressedstream = BytesIO(compresseddata)
             gzipper = gzip.GzipFile(fileobj=compressedstream)
             xml = gzipper.read()
 
