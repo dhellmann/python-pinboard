@@ -80,7 +80,10 @@ try:
     urlopen = urllib2.urlopen
 except AttributeError:
     from urllib.request import urlopen
-
+try:
+    urlencode = urllib.urlencode
+except AttributeError:
+    from urllib.parse import urlencode
 
 # The URL of the Pinboard API
 PINBOARD_API = "https://api.pinboard.in/v1"
@@ -329,7 +332,7 @@ class PinboardAccount(UserDict):
             query["dt"] = date
 
         postsxml = self.__request("%s/posts/%s?%s" % (PINBOARD_API, path, \
-                urllib.urlencode(query))).getElementsByTagName("post")
+                urlencode(query))).getElementsByTagName("post")
         posts = []
         if _debug:
             sys.stderr.write("Parsing posts XML into a list of dictionaries.\n")
@@ -360,7 +363,7 @@ class PinboardAccount(UserDict):
 
     def suggest(self, url):
         query = {'url': url}
-        tags = self.__request("%s/posts/suggest?%s" % (PINBOARD_API, urllib.urlencode(query)))
+        tags = self.__request("%s/posts/suggest?%s" % (PINBOARD_API, urlencode(query)))
 
         popular = [t.firstChild.data for t in tags.getElementsByTagName('popular')]
         recommended = [t.firstChild.data for t in tags.getElementsByTagName('recommended')]
@@ -483,8 +486,8 @@ class PinboardAccount(UserDict):
         elif date:
             query["dt"] = date
         try:
-            response = self.__request("%s/posts/add?%s" % (PINBOARD_API, \
-                    urllib.urlencode(query)))
+            response = self.__request("%s/posts/add?%s" % (PINBOARD_API,
+                                                           urlencode(query)))
             if response.firstChild.getAttribute("code") != u"done":
                 raise AddError
             if _debug:
@@ -505,7 +508,7 @@ class PinboardAccount(UserDict):
             query["tags"] = tags
         try:
             response = self.__request("%s/tags/bundles/set?%s" % (PINBOARD_API, \
-                    urllib.urlencode(query)))
+                    urlencode(query)))
             if response.firstChild.getAttribute("code") != u"done":
                 raise BundleError
             if _debug:
@@ -520,7 +523,7 @@ class PinboardAccount(UserDict):
         """Delete post from pinboard.in by its URL"""
         try:
             response = self.__request("%s/posts/delete?%s" % (PINBOARD_API, \
-                    urllib.urlencode({"url":url})))
+                    urlencode({"url":url})))
             if response.firstChild.getAttribute("code") != u"done":
                 raise DeleteError
             if _debug:
@@ -535,7 +538,7 @@ class PinboardAccount(UserDict):
         """Delete bundle from pinboard.in by its name"""
         try:
             response = self.__request("%s/tags/bundles/delete?%s" % (PINBOARD_API, \
-                    urllib.urlencode({"bundle":name})))
+                    urlencode({"bundle":name})))
             if response.firstChild.getAttribute("code") != u"done":
                 raise DeleteBundleError
             if _debug:
@@ -551,7 +554,7 @@ class PinboardAccount(UserDict):
         query = {"old":old, "new":new}
         try:
             response = self.__request("%s/tags/rename?%s" % (PINBOARD_API, \
-                    urllib.urlencode(query)))
+                    urlencode(query)))
             if response.firstChild.getAttribute("code") != u"done":
                 raise RenameTagError
             if _debug:
