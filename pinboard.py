@@ -32,30 +32,18 @@ USER_AGENT = "Python-Pinboard/%s +http://morgancraft.com/service_layer/python-pi
 
 
 import urllib
-import urllib2
+try:
+    import urllib2
+except:
+    urllib2 = urllib
 import sys
 import re
 import time
 ## added to handle gzip compression from server
-import StringIO
+from six import StringIO
 import gzip
 
 from xml.dom import minidom
-try:
-    StringTypes = basestring
-except:
-    try:
-        # Python 2.2 does not have basestring
-        from types import StringTypes
-    except:
-        # Python 2.0 and 2.1 do not have StringTypes
-        from types import StringType, UnicodeType
-        StringTypes = None
-try:
-    ListType = list
-    TupleType = tuple
-except:
-    from types import ListType, TupleType
 
 # Taken from Mark Pilgrim's amazing Universal Feed Parser
 # <http://feedparser.org/>
@@ -63,11 +51,9 @@ try:
     UserDict = dict
 except NameError:
     from UserDict import UserDict
-try:
-    import datetime
-except:
-    datetime = None
+import datetime
 
+import six
 
 
 # The URL of the Pinboard API
@@ -226,7 +212,7 @@ class PinboardAccount(UserDict):
             raw_xml = urllib2.urlopen(url)
             compresseddata = raw_xml.read()
             ## bing unpackaging gzipped stream buffer
-            compressedstream = StringIO.StringIO(compresseddata)
+            compressedstream = StringIO(compresseddata)
             gzipper = gzip.GzipFile(fileobj=compressedstream)
             xml = gzipper.read()
 
@@ -294,28 +280,25 @@ class PinboardAccount(UserDict):
             query["tag"] = tag
 
         ##todt
-        if todt and (isinstance(todt, ListType) or isinstance(todt, TupleType)):
+        if todt and isinstance(todt, (list, tuple)):
             query["todt"] = "-".join([str(x) for x in todt[:3]])
-        elif todt and (todt and isinstance(todt, datetime.datetime) or \
-                isinstance(todt, datetime.date)):
-            query["todt"] = "-".join([str(todt.year), str(todt.month), str(todt.day)])
+        elif todt and isinstance(todt, (datetime.date, datetime.datetime)):
+            query["todt"] = todt.stformat('%Y-%m-%d')
         elif todt:
             query["todt"] = todt
 
         ## fromdt
-        if fromdt and (isinstance(fromdt, ListType) or isinstance(fromdt, TupleType)):
+        if fromdt and isinstance(fromdt, (list, tuple)):
             query["fromdt"] = "-".join([str(x) for x in fromdt[:3]])
-        elif fromdt and (fromdt and isinstance(fromdt, datetime.datetime) or \
-                isinstance(fromdt, datetime.date)):
-            query["fromdt"] = "-".join([str(fromdt.year), str(fromdt.month), str(fromdt.day)])
+        elif fromdt and isinstance(fromdt, (datetime.date, datetime.datetime)):
+            query["fromdt"] = fromdt.strformat('%Y-%m-%d')
         elif fromdt:
             query["fromdt"] = fromdt
 
-        if date and (isinstance(date, ListType) or isinstance(date, TupleType)):
+        if date and isinstance(date, (list, tuple)):
             query["dt"] = "-".join([str(x) for x in date[:3]])
-        elif date and (datetime and isinstance(date, datetime.datetime) or \
-                isinstance(date, datetime.date)):
-            query["dt"] = "-".join([str(date.year), str(date.month), str(date.day)])
+        elif date and isinstance(date, (datetime.date, datetime.datetime)):
+            query["dt"] = date.strformat('%Y-%m-%d')
         elif date:
             query["dt"] = date
 
@@ -336,7 +319,7 @@ class PinboardAccount(UserDict):
                 if name == u"time":
                     postdict[u"time_parsed"] = time.strptime(value, "%Y-%m-%dT%H:%M:%SZ")
                 postdict[name] = value
-            if self.has_key("posts") and isinstance(self["posts"], ListType) \
+            if self.has_key("posts") and isinstance(self["posts"], list) \
                     and postdict not in self["posts"]:
                 self["posts"].append(postdict)
             posts.append(postdict)
@@ -373,7 +356,7 @@ class PinboardAccount(UserDict):
                 elif name == u"count":
                     value = int(value)
                 tagdict[name] = value
-            if self.has_key("tags") and isinstance(self["tags"], ListType) \
+            if self.has_key("tags") and isinstance(self["tags"], list) \
                     and tagdict not in self["tags"]:
                 self["tags"].append(tagdict)
             tags.append(tagdict)
@@ -394,7 +377,7 @@ class PinboardAccount(UserDict):
             bundledict = {}
             for (name, value) in bundle.attributes.items():
                 bundledict[name] = value
-            if self.has_key("bundles") and isinstance(self["bundles"], ListType) \
+            if self.has_key("bundles") and isinstance(self["bundles"], list) \
                     and bundledict not in self["bundles"]:
                 self["bundles"].append(bundledict)
             bundles.append(bundledict)
@@ -423,7 +406,7 @@ class PinboardAccount(UserDict):
                 elif name == u"count":
                     value = int(value)
                 datedict[name] = value
-            if self.has_key("dates") and isinstance(self["dates"], ListType) \
+            if self.has_key("dates") and isinstance(self["dates"], list) \
                     and datedict not in self["dates"]:
                 self["dates"].append(datedict)
             dates.append(datedict)
@@ -445,11 +428,9 @@ class PinboardAccount(UserDict):
         query["shared"] = shared
         if extended:
             query["extended"] = extended
-        if tags and (isinstance(tags, TupleType) or isinstance(tags, ListType)):
+        if tags and isinstance(tags, (tuple, list)):
             query["tags"] = " ".join(tags)
-        elif tags and (StringTypes and isinstance(tags, StringTypes)) or \
-                (not StringTypes and (isinstance(tags, StringType) or \
-                isinstance(tags, UnicodeType))):
+        elif tags and isinstance(tags, six.string_types):
             query["tags"] = tags
 
         # This is a rather rudimentary way of parsing date strings into
@@ -461,20 +442,17 @@ class PinboardAccount(UserDict):
         # the tuple/list is padded with necessary 0s and then formatted
         # into an ISO8601 date string. This does not take into account
         # time zones.
-        if date and (StringTypes and isinstance(date, StringTypes)) or \
-                (not StringTypes and (isinstance(date, StringType) or \
-                isinstance(date, UnicodeType))) and len(date) < 20:
+        if date and isinstance(date, six.string_types) and len(date) < 20:
             date = re.split("\D", date)
             while '' in date:
                 date.remove('')
-        if date and (isinstance(date, ListType) or isinstance(date, TupleType)):
+        if date and isinstance(date, (list, tuple)):
             date = list(date)
             if len(date) > 2 and len(date) < 6:
                 for i in range(6 - len(date)):
                     date.append(0)
             query["dt"] = "%.4d-%.2d-%.2dT%.2d:%.2d:%.2dZ" % tuple(date)
-        elif date and (datetime and (isinstance(date, datetime.datetime) \
-                or isinstance(date, datetime.date))):
+        elif date and isinstance(date, (datetime.date, datetime.datetime)):
             query["dt"] = "%.4d-%.2d-%.2dT%.2d:%.2d:%.2dZ" % date.utctimetuple()[:6]
         elif date:
             query["dt"] = date
@@ -495,9 +473,9 @@ class PinboardAccount(UserDict):
         """Bundle a set of tags together"""
         query = {}
         query["bundle"] = bundle
-        if tags and (isinstance(tags, TupleType) or isinstance(tags, ListType)):
+        if tags and isinstance(tags, (tuple, list)):
             query["tags"] = " ".join(tags)
-        elif tags and isinstance(tags, StringTypes):
+        elif tags and isinstance(tags, six.string_types):
             query["tags"] = tags
         try:
             response = self.__request("%s/tags/bundles/set?%s" % (PINBOARD_API, \
